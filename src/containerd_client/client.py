@@ -134,6 +134,10 @@ class _Stubs:
     tasks: Any
 
 
+# containerd's Go client allows 16 MiB per message; ListContainers returns full specs.
+MAX_RECEIVE_MESSAGE_BYTES: Final = 16 * 1024 * 1024
+
+
 class ContainerdClient:
     """Every RPC carries the namespace header and a timeout; failures raise `ContainerdError`s."""
 
@@ -145,6 +149,7 @@ class ContainerdClient:
         self._config = config
         self._channel = None
         self._stubs = None
+        self._connect_lock = asyncio.Lock()
 
     @property
     def snapshotter(self) -> str:
@@ -159,17 +164,30 @@ class ContainerdClient:
         return self._stubs is not None
 
     async def connect(self) -> None:
+        async with self._connect_lock:
+            await self._connect()
+
+    async def _connect(self) -> None:
         if self._channel is not None:
             return
-        channel = grpc.aio.insecure_channel(_grpc_target(self._config.address))
+        channel = grpc.aio.insecure_channel(
+            _grpc_target(self._config.address),
+            options=[
+                ("grpc.max_receive_message_length", MAX_RECEIVE_MESSAGE_BYTES),
+                ("grpc.max_send_message_length", MAX_RECEIVE_MESSAGE_BYTES),
+            ],
+        )
         try:
             async with asyncio.timeout(self._config.call_timeout):
                 await channel.channel_ready()
-        except TimeoutError as e:
-            await channel.close()
-            raise ContainerdUnavailable(
-                f"containerd at {self._config.address} is not reachable"
-            ) from e
+        except BaseException as e:
+            # Also on cancellation: a half-open channel must not outlive a failed connect.
+            await asyncio.shield(channel.close())
+            if isinstance(e, TimeoutError):
+                raise ContainerdUnavailable(
+                    f"containerd at {self._config.address} is not reachable"
+                ) from e
+            raise
         self._channel = channel
         self._stubs = _Stubs(
             containers=containers_pb2_grpc.ContainersStub(channel),

@@ -1,5 +1,7 @@
 """An async client for containerd's native v1 API, with plain Python types at its API."""
 
+from importlib.metadata import version
+
 from containerd_client.client import (
     NAMESPACE_HEADER,
     SPEC_TYPE_URL,
@@ -27,7 +29,7 @@ from containerd_client.types import (
     TaskState,
 )
 
-__version__ = "0.1.0.dev0"
+__version__ = version("containerd-client-py")
 
 __all__ = (
     "DEFAULT_CALL_TIMEOUT",

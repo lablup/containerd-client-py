@@ -29,6 +29,10 @@ The stubs in `src/containerd_client/_grpcapi/` are generated from the protos of 
 **v1.7.27** (API module v1.8.0) with grpcio-tools **1.84.1** (protobuf gencode 7.35.1). Both are
 constants at the top of `scripts/regen.py`.
 
+Tested against: an in-process fake of the services below, over a Unix socket. It has **not** yet been
+run against a live containerd daemon; the generated API is v1.7.27, and the containerd v1.x API is
+backward compatible, but treat daemon compatibility as unverified until that is done.
+
 RPCs the client calls:
 
 - containers: Create, Delete, Get, List

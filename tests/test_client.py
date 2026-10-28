@@ -478,6 +478,55 @@ class TestConnection:
         with pytest.raises(ContainerdUnavailable):
             await client.connect()
 
+    async def test_cancelled_connect_closes_the_channel(
+        self, socket_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        closed: list[bool] = []
+        real_insecure_channel = grpc.aio.insecure_channel
+
+        def spy(*args: Any, **kwargs: Any) -> grpc.aio.Channel:
+            channel = real_insecure_channel(*args, **kwargs)
+            real_close = channel.close
+
+            async def close(*a: Any, **k: Any) -> None:
+                closed.append(True)
+                await real_close(*a, **k)
+
+            monkeypatch.setattr(channel, "close", close)
+            return channel
+
+        monkeypatch.setattr(grpc.aio, "insecure_channel", spy)
+        client = ContainerdClient(
+            ContainerdClientConfig(
+                address=str(socket_path), namespace="ns", snapshotter="overlayfs", call_timeout=30
+            )
+        )
+
+        task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert closed == [True]
+        assert not client.connected
+
+    async def test_concurrent_connects_share_one_channel(
+        self, server: None, socket_path: Path
+    ) -> None:
+        client = ContainerdClient(
+            ContainerdClientConfig(
+                address=str(socket_path), namespace="ns", snapshotter="overlayfs"
+            )
+        )
+        await asyncio.gather(client.connect(), client.connect(), client.connect())
+        channel = client._channel
+        await client.connect()
+
+        assert channel is not None
+        assert client._channel is channel
+        await client.close()
+
     async def test_calls_before_connect_are_refused(self, socket_path: Path) -> None:
         client = ContainerdClient(
             ContainerdClientConfig(

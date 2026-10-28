@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ["*"]
+    tags: ["[0-9]+.[0-9]+.[0-9]+*"]
   pull_request:
 
 permissions:
@@ -13,8 +13,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
         with:
           python-version: "3.13"
       - run: uv sync --locked
@@ -23,19 +23,34 @@ jobs:
       - run: uv run mypy src
       - run: uv run pytest -q
 
-  build:
-    needs: test
+  lowest-deps:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
+        with:
+          python-version: "3.13"
+      - run: uv venv
+      - name: Install the lowest allowed runtime dependencies
+        run: |
+          uv pip compile pyproject.toml --resolution lowest-direct -o lowest.txt
+          uv pip install -r lowest.txt pytest pytest-asyncio
+          uv pip install --no-deps -e .
+      - run: uv run --no-sync pytest -q
+
+  build:
+    needs: [test, lowest-deps]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
         with:
           python-version: "3.13"
       - name: Check that the tag matches the package version
         if: startsWith(github.ref, 'refs/tags/')
         run: test "${GITHUB_REF_NAME}" = "$(uv version --short)"
       - run: uv build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: dist
           path: dist/
@@ -48,8 +63,8 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # release/v1
