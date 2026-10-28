@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "containerd-client-py"
+version = "0.1.0"
+description = "An async client for containerd's native v1 gRPC API with plain Python types"
+authors = [{ name = "Lablup Inc." }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: POSIX :: Linux",
+    "Framework :: AsyncIO",
+]
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = [
+    "grpcio>=1.84,<2",
+    "protobuf>=7.35.1,<8",
+]
+
+[project.urls]
+Repository = "https://github.com/lablup/containerd-client-py"
+
+[dependency-groups]
+dev = [
+    "grpcio-tools==1.84.1",
+    "pytest",
+    "pytest-asyncio",
+    "mypy",
+    "types-grpcio",
+    "types-protobuf",
+    "ruff",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/containerd_client"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["src/containerd_client/_grpcapi"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = "containerd_client._grpcapi.*"
+ignore_errors = true

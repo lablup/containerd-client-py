@@ -1,0 +1,8 @@
+NOTICE
+
+containerd-client-py
+Copyright 2026 Lablup Inc.
+
+The generated code in src/containerd_client/_grpcapi is compiled from the protobuf
+definitions of containerd (https://github.com/containerd/containerd),
+Copyright The containerd Authors, licensed under the Apache License, Version 2.0.
